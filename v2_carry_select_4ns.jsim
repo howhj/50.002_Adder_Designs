@@ -1,0 +1,105 @@
+.include "./Supporting files/nominal.jsim"
+.include "./Supporting files/stdcell.jsim"
+.include "./Supporting files/2dcheckoff_4ns.jsim"
+
+* Second design, working with tpd <4ns
+
+**** Faster XOR ******************
+
+.subckt betterxor a b z
+Xz1 a b 1 nand2
+Xz2 a 1 2 nand2
+Xz3 b 1 3 nand2
+Xz4 2 3 z nand2
+.ends
+
+**********************************
+**** V & Z signals ***************
+
+.subckt Vsignal a b s v
+Xvs s vs inverter
+Xv0 a b v0 nand2
+Xv1 v0 v1 inverter
+Xv2 v1 vs v2 nand2
+Xv3 a b v3 nor2
+Xv4 v3 s v4 nand2
+Xv5 v2 v4 v nand2
+.ends
+
+.subckt Zsignal s[31:0] z
+Xz[15:0] s[31:16] s[15:0] z[15:0] nor2
+Xz[23:16] z[15:8] z[7:0] z[23:16] nand2
+Xz[27:24] z[23:20] z[19:16] z[27:24] nor2
+Xz[29:28] z[27:26] z[25:24] z[29:28] nand2
+Xz30 z29 z28 z nor2
+.ends
+
+**********************************
+**** Adder Circuit ***************
+
+* For the first adder in a RCA
+.subckt FA0 a b cin s co
+Xs1 a b 1 betterxor
+Xs2 cin 1 s betterxor
+Xc1 a b 2 nand2
+Xc2 b cin 3 nand2
+Xc3 a cin 4 nand2
+Xc4 2 3 4 co nand3
+.ends
+
+* For all subsequent adders
+.subckt FA a b cin s co
+Xs1 a b 1 betterxor
+Xs2 cin 1 s betterxor
+Xc1 a b 2 nand2
+Xc2 a b 3 nor2
+Xc3 3 4 inverter
+Xc4 cin 4 5 nand2
+Xc5 2 5 co nand2
+.ends
+
+**********************************
+**** 4 Bit Units *****************
+
+* 4 bit ripple carry unit
+.subckt RCA4 a[3:0] b[3:0] cin s[3:0] co
+Xfa0 a0 b0 cin s0 c0 FA0
+Xfa[3:1] a[3:1] b[3:1] c[2:0] s[3:1] c[3:1] FA
+.connect c3 co
+.ends
+
+* 4 bit carry select unit
+.subckt CSA4 a[3:0] b[3:0] cin s[3:0] co
+Xrca0 a[3:0] b[3:0] 0 sa[3:0] ca RCA4
+Xrca1 a[3:0] b[3:0] vdd sb[3:0] cb RCA4
+Xms[3:0] cin#4 sa[3:0] sb[3:0] s[3:0] mux2
+Xmc cin ca cb co mux2
+.ends
+
+**********************************
+**** Carry Select ****************
+
+.subckt adder32 ALUFN[0] a[31:0] b[31:0] s[31:0] z v n
+
+Xbx[31:0] b[31:0] ALUFN0#32 bx[31:0] betterxor
+
+Xrca a[3:0] bx[3:0] ALUFN0 s[3:0] c0 RCA4
+Xcsa0 a[7:4] bx[7:4] c0 s[7:4] c1 CSA4
+Xcsa1 a[11:8] bx[11:8] c1 s[11:8] c2 CSA4
+Xcsa2 a[15:12] bx[15:12] c2 s[15:12] c3 CSA4
+Xcsa3 a[19:16] bx[19:16] c3 s[19:16] c4 CSA4
+Xcsa4 a[23:20] bx[23:20] c4 s[23:20] c5 CSA4
+Xcsa5 a[27:24] bx[27:24] c5 s[27:24] c6 CSA4
+Xcsa6 a[31:28] bx[31:28] c6 s[31:28] c7 CSA4
+
+* n signal
+.connect s31 n
+
+* v signal
+Xv a31 bx31 s31 v Vsignal
+
+* z signal
+Xz s[31:0] z Zsignal
+.ends
+
+**********************************

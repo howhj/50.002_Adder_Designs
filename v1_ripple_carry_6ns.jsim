@@ -1,0 +1,79 @@
+.include "./Supporting files/nominal.jsim"
+.include "./Supporting files/stdcell.jsim"
+.include "./Supporting files/2dcheckoff_6ns.jsim"
+
+* First design, working with tpd <6ns
+
+**** Faster XOR ******************
+
+.subckt betterxor a b z
+Xz1 a b 1 nand2
+Xz2 a 1 2 nand2
+Xz3 b 1 3 nand2
+Xz4 2 3 z nand2
+.ends
+
+**********************************
+**** V & Z signals ***************
+
+.subckt Vsignal a b s v
+Xvs s vs inverter
+Xv0 a b v0 nand2
+Xv1 v0 v1 inverter
+Xv2 v1 vs v2 nand2
+Xv3 a b v3 nor2
+Xv4 v3 s v4 nand2
+Xv5 v2 v4 v nand2
+.ends
+
+.subckt Zsignal s[31:0] z
+Xz[15:0] s[31:16] s[15:0] z[15:0] nor2
+Xz[23:16] z[15:8] z[7:0] z[23:16] nand2
+Xz[27:24] z[23:20] z[19:16] z[27:24] nor2
+Xz[29:28] z[27:26] z[25:24] z[29:28] nand2
+Xz30 z29 z28 z nor2
+.ends
+
+**********************************
+**** Adder Circuit ***************
+
+* For the first adder in a RCA
+.subckt FA0 a b cin s co
+Xs1 a b 1 betterxor
+Xs2 cin 1 s betterxor
+Xc1 a b 2 nand2
+Xc2 b cin 3 nand2
+Xc3 a cin 4 nand2
+Xc4 2 3 4 co nand3
+.ends
+
+* For all subsequent adders
+.subckt FA a b cin s co
+Xs1 a b 1 betterxor
+Xs2 cin 1 s betterxor
+Xc1 a b 2 nand2
+Xc2 a b 3 nor2
+Xc3 3 4 inverter
+Xc4 cin 4 5 nand2
+Xc5 2 5 co nand2
+.ends
+
+**********************************
+**** Ripple Carry ****************
+
+.subckt adder32 ALUFN[0] a[31:0] b[31:0] s[31:0] z v n
+Xfa0 a0 bx0 ALUFN0 s0 c0 FA0
+Xfa[31:1] a[31:1] bx[31:1] c[30:0] s[31:1] c[31:1] FA
+Xbx[31:0] b[31:0] ALUFN0#32 bx[31:0] betterxor
+
+* n signal
+.connect s31 n
+
+* v signal
+Xv a31 bx31 s31 v Vsignal
+
+* z signal
+Xz s[31:0] z Zsignal
+.ends
+
+*********************************

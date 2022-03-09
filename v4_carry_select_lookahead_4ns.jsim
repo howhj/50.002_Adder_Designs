@@ -1,0 +1,145 @@
+.include "./Supporting files/nominal.jsim"
+.include "./Supporting files/stdcell.jsim"
+.include "./Supporting files/2dcheckoff_4ns.jsim"
+
+* Fourth design, working with tpd <4ns
+
+.subckt betterxor a b z
+Xz1 a b 1 nand2
+Xz2 a 1 2 nand2
+Xz3 b 1 3 nand2
+Xz4 2 3 z nand2
+.ends
+
+**********************************
+**** FA circuit ******************
+
+.subckt FA a b cin s g p
+Xs1 a b 1 betterxor
+Xs2 cin 1 s betterxor
+Xp a b p nor2
+Xg a b g nand2
+.ends
+
+**********************************
+**** V & Z signals ***************
+
+.subckt Vsignal a b s v
+Xvs s vs inverter
+Xva a va inverter
+Xvb b vb inverter
+Xv0 a b v0 and2
+Xv1 v0 vs v1 nand2
+Xv2 va vb v2 and2
+Xv3 v2 s v3 nand2
+Xv4 v1 v3 v nand2
+.ends
+
+.subckt Zsignal s[31:0] z
+Xz[15:0] s[31:16] s[15:0] z[15:0] nor2
+Xz[23:16] z[15:8] z[7:0] z[23:16] nand2
+Xz[27:24] z[23:20] z[19:16] z[27:24] nor2
+Xz[29:28] z[27:26] z[25:24] z[29:28] nand2
+Xz30 z29 z28 z nor2
+.ends
+
+**********************************
+**** 4 Bit Units *****************
+
+.subckt RCA4 a[3:0] b[3:0] c0 s[3:0] gg pg
+Xfa[3:0] a[3:0] b[3:0] c[3:0] s[3:0] g[3:0] p[3:0] FA
+Xlcu g[3:0] p[3:0] c0 gg pg c[3:1] LCU
+.ends
+
+.subckt CSA4 a[3:0] b[3:0] cin s[3:0] co
+Xrca0 a[3:0] b[3:0] 0 sa[3:0] ca RCA4
+Xrca1 a[3:0] b[3:0] vdd sb[3:0] cb RCA4
+Xms[3:0] cin#4 sa[3:0] sb[3:0] s[3:0] mux2
+Xmc cin ca cb co mux2
+.ends
+
+**********************************
+**** Lookahead Carry Units *******
+
+* Receives 4 bit input
+.subckt LCU g[3:0] p[3:0] c0 gg pg c[3:1]
+Xc0 c0 cinv inverter
+
+Xc1a p0 cinv c1a nor2
+Xc1b c1a c1b inverter
+Xc1c g0 c1b c1 nand2
+
+Xc2a g0 p1 c2a nor2
+Xc2b c2a c2b inverter
+Xc2c p1 p0 cinv c2c nor3
+Xc2d c2c c2d inverter
+Xc2e g1 c2b c2d c2 nand3
+
+Xc3a g1 p2 c3a nor2
+Xc3b p2 g0 p1 c3b nor3
+Xc3c p2 p1 p0 cinv c3c nor4
+Xc3d c3a c3d inverter
+Xc3e c3b c3e inverter
+Xc3f c3c c3f inverter
+Xc3g g2 c3d c3e c3f c3 nand4
+
+Xp0 p0 p1 p2 p3 pa nor4
+Xp1 pa pg inverter
+
+Xg0 g2 p3 ga nor2
+Xg1 ga gb inverter
+Xg2 p3 p2 gc nor2
+Xg3 g1 gd inverter
+Xg4 gc gd ge nand2
+Xg5 g0 p3 gf nor2
+Xg6 p2 p1 gh nor2
+Xg7 gf gh gi nand2
+Xg8 g3 gb gj nand2
+Xg9 ge gi gk nand2
+Xg10 gj gk gg nor2
+.ends
+
+* For 16 bit adder
+.subckt LCU16 a[15:0] b[15:0] cin s[15:0] glcu plcu
+Xrca0 a[3:0] b[3:0] cin s[3:0] gg0 pg0 RCA4
+Xrca1 a[7:4] b[7:4] c0 s[7:4] gg1 pg1 RCA4
+Xrca2 a[11:8] b[11:8] c1 s[11:8] gg2 pg2 RCA4
+Xrca3 a[15:12] b[15:12] c2 s[15:12] gg3 pg3 RCA4
+Xlcu gg[3:0] pg[3:0] cin glcu plcu c[2:0] LCU
+.ends
+
+* Receives 2 bit input
+.subckt LCU2 g0 p0 c0 c1
+Xc0 c0 cinv inverter
+Xc1a p0 cinv c1a nor2
+Xc1b c1a c1b inverter
+Xc1c g0 c1b c1 nand2
+.ends
+
+* For 32 bit adder
+.subckt LCU32 a[31:0] b[31:0] c0 s[31:0]
+Xlcu0 a[15:0] b[15:0] c0 s[15:0] glcu plcu LCU16
+Xlcu1 glcu plcu c0 c1 LCU2
+Xlcu2 a[31:16] b[31:16] c1 s[31:16] g0 p0 LCU16
+.ends
+
+**********************************
+**** Carry Select & Lookahead ****
+
+.subckt adder32 ALUFN[0] a[31:0] b[31:0] s[31:0] z v n
+
+Xbx[31:0] b[31:0] ALUFN0#32 bx[31:0] betterxor
+
+Xlcu a[31:0] bx[31:0] ALUFN0 s[31:0] LCU32
+
+* n signal
+.connect s31 n
+
+* v signal
+Xv a31 bx31 s31 v Vsignal
+
+* z signal
+Xz s[31:0] z Zsignal
+.ends
+
+**********************************
