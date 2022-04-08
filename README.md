@@ -2,10 +2,12 @@
 
 Various adder designs for the 50.002 component of the term 4 2D project.
 
+The goal was to reduce the tpd of a 32-bit adder to <3ns, through the use of inverted logic and alternative adder architectures.
+
 ## Running the jsim files
 
-1. Download `jsim.jar` from https://ocw.mit.edu/courses/6-004-computation-structures-spring-2009/resources/jsim/.
-2. Install JRE from https://www.java.com/en/download/manual.jsp.
+1. Download `jsim.jar` from [MIT OCW](https://ocw.mit.edu/courses/6-004-computation-structures-spring-2009/resources/jsim/).
+2. Install [JRE](https://www.java.com/en/download/manual.jsp).
 3. Go to the folder where `jsim.jar` is saved, and run the command  `java -jar jsim.jar`.
 4. Open one of the adder jsim files (e.g. `v3_carry_lookahead_3ns.jsim`).
 5. Click on "Gate-level simulation" (5th button from the right).
