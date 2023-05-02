@@ -1,4 +1,4 @@
-# 50002-2D-Adder
+# 50.002 2D Adder
 
 Various adder designs for the 50.002 component of the term 4 2D project.
 
